@@ -15,8 +15,7 @@
 //last argument always has to be empty
 static struct usb_device_id my_usb_table[] = 
 {
-    {USB_DEVICE(DEVICE_VENDOR_ID, DEVICE_PRODUCT_ID)},
-    {USB_DEVICE_INFO(class,subclass,protocoll)}, 
+    {USB_DEVICE(DEVICE_VENDOR_ID, DEVICE_PRODUCT_ID)}, 
     {}, 
 };
 MODULE_DEVICE_TABLE(usb, my_usb_table); 
@@ -36,8 +35,8 @@ static struct usb_driver my_usb_driver =
     .name = "WacomDeviceDriver",
     .id_table = my_usb_table,
     .probe = my_usb_probe,
-    .disconnect = my_usb_disconnect,
-}
+    .disconnect = my_usb_disconnect
+};
 //proc file system name
 #define proc_name = "wacom-device-tablet"
 
