@@ -21,12 +21,12 @@ static struct usb_device_id my_usb_table[] =
 MODULE_DEVICE_TABLE(usb, my_usb_table); 
 //this function is executed when the usb is put in
 static int my_usb_probe(struct usb_interface *intf, const struct usb_device_id *id) { 
-      printk("The Probe function has executed");
+      printk("WacomDriver - The Probe function has executed\n");
       return 0; 
 }
 //this function is executed when the usb is ejected out 
 static void my_usb_disconnect(struct usb_interface *intf) { 
-      printk("The Exit function has executed");
+      printk("WacomDriver - The Exit function has executed\n");
       
        
 }
@@ -35,7 +35,8 @@ static struct usb_driver my_usb_driver =
     .name = "WacomDeviceDriver",
     .id_table = my_usb_table,
     .probe = my_usb_probe,
-    .disconnect = my_usb_disconnect
+    .disconnect = my_usb_disconnect,
+    .supports_autosuspend = 1
 };
 //proc file system name
 #define proc_name = "wacom-device-tablet"
@@ -51,7 +52,7 @@ static size_t buffer_data_size = 0; //keeps track of how much data is stored in 
 
 //Shows that device is opened in kernel
 static int device_open(struct inode *inode, struct file *file) {
-	printk(KERN_INFO "Device opened\n");
+	printk(KERN_INFO "WacomDriver - Device opened\n");
 	return 0;
 }
 
@@ -106,7 +107,7 @@ static int __init loopback_init(void){
 		printk(KERN_ALERT "Failed to register major number\n");
 		return major_number;
 	}
-	printk(KERN_INFO "Loopback device registered with major numebr %d\n", major_number);
+	printk(KERN_INFO "WacomDriver - Loopback device registered with major numebr %d\n", major_number);
 	usb_result = usb_register(&my_usb_driver);
 	if(usb_result){
 	    printk("error loading register");
@@ -119,7 +120,7 @@ static int __init loopback_init(void){
 static void __exit loopback_exit(void){
 
 	unregister_chrdev(major_number, DEVICE_NAME);
-	printk(KERN_INFO "Loopback device unregistered\n");
+	printk(KERN_INFO "WacomDriver - Loopback device unregistered\n");
 	usb_deregister(&my_usb_driver);
 }
 
