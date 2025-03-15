@@ -25,7 +25,6 @@ MODULE_VERSION("1.0");
 
 /* Global variables */
 static int major_number;
-static int left_mouse_clicked=0;
 static char buffer[BUFFER_SIZE];
 static size_t buffer_data_size = 0;
 static struct proc_dir_entry *pentry = NULL;
@@ -36,6 +35,9 @@ struct device_data {
 	struct cdev cdev;
 };
 static struct device_data dev_data;
+//values to be tracked for the proc file
+static int left_mouse_clicked=0;
+static int right_mouse_clicked=0;
 
 /* Use a mutex (instead of a spinlock) for protecting the log buffer in process context */
 static DEFINE_MUTEX(buffer_mutex);
@@ -90,25 +92,29 @@ static struct file_operations fops = {
 
 // Read function
 static ssize_t read_proc(struct file *file, char __user *user_buf, size_t count, loff_t *pos) {
-    char buf[32];
-    int len = snprintf(buf, sizeof(buf), "%d\n", left_mouse_clicked);
+    char buf[128];
+    int len = snprintf(buf, sizeof(buf), DEVICE_NAME "\nLeft Mouse Clicked: %d\n Right Mouse Clicked: %d\n", left_mouse_clicked, right_mouse_clicked);
     
     return simple_read_from_buffer(user_buf, count, pos, buf, len);
 }
 
 // Write function
 static ssize_t write_proc(struct file *file, const char __user *user_buf, size_t count, loff_t *pos) {
-    char buf[16];
+    char buf[32];
     if (count > sizeof(buf) - 1)
         return -EINVAL;
 
     if (copy_from_user(buf, user_buf, count))
         return -EFAULT;
-    
+    //temp values to store
+    int new_lclick=0;
+    int new_rclick=0;
     buf[count] = '\0';
-    if (kstrtoint(buf, 10, &left_mouse_clicked)) // Convert user input to int
+    //scans for two integers. Throws an error if less than two appear for whatever reason
+    if (sscanf(buf,"%d %d",&new_lclick,&new_rclick)!=2) // Convert user input to int
         return -EINVAL;
-
+    left_mouse_clicked=new_lclick;
+    right_mouse_clicked=new_rclick;
     return count;
 }
 
@@ -277,7 +283,7 @@ static int mouse_raw_event(struct hid_device *hdev, struct hid_report *report, u
    }
 
    if(buttons & (1 << 1)){
-
+      right_mouse_clicked+=1;
      printk(KERN_INFO "Right Button Pressed\n");
    }
    if(buttons & (1 << 2)){
