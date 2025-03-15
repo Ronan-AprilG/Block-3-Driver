@@ -14,9 +14,9 @@
 #define DEVICE_NAME "ISE_mouse_driver"
 #define BUFFER_SIZE 1024
 #define URB_BUFFER_SIZE 64
-
-#define DEVICE_VENDOR_ID 0x046d
-#define DEVICE_PRODUCT_ID 0xc063
+//my vendor id please replace - April
+#define DEVICE_VENDOR_ID 0x18f8
+#define DEVICE_PRODUCT_ID 0x0f97
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yasmin, David, Waleed, April, merged with deferred logging by Your Name");
@@ -25,6 +25,7 @@ MODULE_VERSION("1.0");
 
 /* Global variables */
 static int major_number;
+static int left_mouse_clicked=0;
 static char buffer[BUFFER_SIZE];
 static size_t buffer_data_size = 0;
 static struct proc_dir_entry *pentry = NULL;
@@ -86,7 +87,35 @@ static struct file_operations fops = {
 };
 
 /* Proc file setup */
-static struct proc_ops pops = { };
+
+// Read function
+static ssize_t read_proc(struct file *file, char __user *user_buf, size_t count, loff_t *pos) {
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "%d\n", left_mouse_clicked);
+    
+    return simple_read_from_buffer(user_buf, count, pos, buf, len);
+}
+
+// Write function
+static ssize_t write_proc(struct file *file, const char __user *user_buf, size_t count, loff_t *pos) {
+    char buf[16];
+    if (count > sizeof(buf) - 1)
+        return -EINVAL;
+
+    if (copy_from_user(buf, user_buf, count))
+        return -EFAULT;
+    
+    buf[count] = '\0';
+    if (kstrtoint(buf, 10, &left_mouse_clicked)) // Convert user input to int
+        return -EINVAL;
+
+    return count;
+}
+
+static struct proc_ops pops = { 
+    .proc_read = read_proc,
+    .proc_write = write_proc,
+};
 
 static int init_proc(void)
 {
@@ -98,6 +127,7 @@ static int init_proc(void)
 	printk(KERN_INFO "Proc file created at /proc/%s\n", DEVICE_NAME);
 	return 0;
 }
+
 
 static void exit_proc(void)
 {
@@ -240,8 +270,9 @@ static int mouse_raw_event(struct hid_device *hdev, struct hid_report *report, u
 
    // check if left button is pressed
    if(buttons & (1 << 0)){
-
+      left_mouse_clicked+=1;
       printk(KERN_INFO "Left Button Pressed\n");
+      printk(KERN_INFO "Left Button Amount:%d\n",left_mouse_clicked);
 	  snprintf(buffer + buffer_data_size, available, "Left Button Pressed");
    }
 
