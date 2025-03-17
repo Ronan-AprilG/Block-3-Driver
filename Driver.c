@@ -17,8 +17,8 @@
 #define BUFFER_SIZE 1024
 #define URB_BUFFER_SIZE 64
 
-#define DEVICE_VENDOR_ID 0x046d
-#define DEVICE_PRODUCT_ID 0xc063
+#define DEVICE_VENDOR_ID 0x18f8
+#define DEVICE_PRODUCT_ID 0x0f97
 
 // IOCTL commands.
 #define IOCTL_GET_BUTTON_STATUS _IOR('M', 1, int)
@@ -193,8 +193,10 @@ static struct file_operations fops = {
 static ssize_t read_proc(struct file *file, char __user *user_buf, size_t count, loff_t *pos)
 {
     char buf[128];
+    mutex_lock(&buffer_mutex);
     int len = snprintf(buf, sizeof(buf), "%s\nLeft Mouse Clicked: %d\nRight Mouse Clicked: %d\n",
                        DEVICE_NAME, left_mouse_clicked, right_mouse_clicked);
+    mutex_unlock(&buffer_mutex);
     return simple_read_from_buffer(user_buf, count, pos, buf, len);
 }
 
@@ -204,6 +206,7 @@ static ssize_t read_proc(struct file *file, char __user *user_buf, size_t count,
 static ssize_t write_proc(struct file *file, const char __user *user_buf, size_t count, loff_t *pos)
 {
     char buf[32];
+    //make sure data does not exceed buffer size
     if (count > sizeof(buf) - 1)
         return -EINVAL;
     if (copy_from_user(buf, user_buf, count))
@@ -211,11 +214,14 @@ static ssize_t write_proc(struct file *file, const char __user *user_buf, size_t
     
     int new_lclick = 0, new_rclick = 0;
     buf[count] = '\0';
+    //can the file for the two numbers to modify
     if (sscanf(buf, "%d %d", &new_lclick, &new_rclick) != 2)
         return -EINVAL;
-    
+    //lock and unlock before modifying variables    
+    mutex_lock(&buffer_mutex);
     left_mouse_clicked = new_lclick;
     right_mouse_clicked = new_rclick;
+    mutex_unlock(&buffer_mutex);
     return count;
 }
 
@@ -393,12 +399,14 @@ static int mouse_raw_event(struct hid_device *hdev, struct hid_report *report, u
 
     if (buttons & (1 << 0)) {
     		len = snprintf(buffer + buffer_data_size, BUFFER_SIZE - buffer_data_size, "Left Button Pressed\n");
+    		left_mouse_clicked+=1;//for proc
         if (len > 0)
             buffer_data_size += len;       
 				button_status = 1;
     }
     if (buttons & (1 << 1)) {
 			  len = snprintf(buffer + buffer_data_size, BUFFER_SIZE - buffer_data_size, "Right Button Pressed\n");
+			  right_mouse_clicked+=1;//for proc
         if (len > 0)
             buffer_data_size += len;       
         button_status = 2;
